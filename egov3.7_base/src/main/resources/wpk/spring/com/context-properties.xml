@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd">
+	
+	<bean name="wpkPropertiesService" class="egovframework.rte.fdl.property.impl.EgovPropertyServiceImpl" destroy-method="destroy">
+		<property name="properties">
+			<map>
+				<entry key="prefixCpnSeq" value="CP"/>
+				<entry key="prefixCustSeq" value="CU"/>
+				<entry key="cpnTypeCoupon" value="CT010"/>
+				<entry key="cpnTypeDcKey" value="CT020"/>
+				<entry key="prefixOrderNo" value="CPN"/>
+				<entry key="stateCd_wait" value="10"/>
+				<entry key="stateCd_pay" value="11"/>
+				<entry key="stateCd_cnfrm" value="21"/>
+				<entry key="stateCd_cmplt" value="31"/>
+				<entry key="stateCd_fail" value="99"/>
+				<entry key="stateNm_10" value="입금대기"/>
+				<entry key="stateNm_11" value="입금확인"/>
+				<entry key="stateNm_21" value="담당자접수"/>
+				<entry key="stateNm_31" value="발송완료"/>
+				<entry key="stateNm_91" value="주문취소"/>
+				<entry key="stateNm_99" value="주문실패"/>
+				<!-- easypay -->
+				<entry key="productName_CT010" value="할인권"/>
+				<entry key="productName_CT020" value="웹할인키"/>
+				<entry key="EP_mall_id_dev" value="T5102001"/>
+				<entry key="EP_mall_id_prod" value="05533402"/>
+				<entry key="EP_mall_nm" value="윌슨파킹코리아 유한회사"/>
+				<entry key="EP_currency" value="00"/>
+				<entry key="EP_return_url_dev" value="http://localhost:9120/easypay/normal/order_res.jsp"/>
+				<entry key="EP_return_url_prod" value=""/>
+				<entry key="EP_ci_url" value=""/>
+				<entry key="EP_charset" value="UTF-8"/>
+				<entry key="EP_window_type" value="iframe"/>
+				<entry key="EP_os_cert_flag" value="2"/>
+				<entry key="EP_kmotion_useyn" value="Y"/>
+				<entry key="EP_vacct_end_time" value="235959"/>
+				<entry key="PayType_11" value="신용카드"/>
+				<entry key="PayType_21" value="계좌이체"/>
+				<entry key="PayType_22" value="무통장입금"/>
+				<entry key="cashIssueType_01" value="소득공제"/>
+				<entry key="cashIssueType_02" value="지출증빙"/>
+			</map>
+		</property>
+	</bean>
+	
+</beans>

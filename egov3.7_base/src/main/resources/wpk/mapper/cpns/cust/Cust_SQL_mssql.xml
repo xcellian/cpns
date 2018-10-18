@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="custDAO">
+	
+	<sql id="sqlCustList">
+		<![CDATA[
+		FROM
+			WPK_CPNS_CUST_MST
+		]]>
+		<trim prefix="WHERE" prefixOverrides="AND">
+			<if test="parkCd != null and parkCd != ''">
+				AND PARK_CD = #{parkCd}
+			</if>
+			<if test="useYn != null and useYn != ''">
+				AND USE_YN = CAST(#{useYn} AS BIT)
+			</if>
+			<if test="startDt != null and startDt != ''">
+				AND REG_DT <![CDATA[ >= ]]> #{startDt}
+			</if>
+			<if test="endDt != null and endDt != ''">
+				AND REG_DT <![CDATA[ < ]]> DATEADD(D, 1, #{endDt})
+			</if>
+			<if test="searchItem != null and keyword != null and keyword != ''">
+				AND
+				<foreach collection="searchItem" item="item" index="index" separator="OR" open="(" close=")">
+					<choose>
+						<when test="item.name == 'custNm'">
+							CUST_NM LIKE '%' + #{keyword} + '%'
+						</when>
+						<when test="item.name == 'custId'">
+							CUST_ID LIKE '%' + #{keyword} + '%'
+						</when>
+						<when test="item.name == 'telNo'">
+							TEL_NO LIKE '%' + #{keyword} + '%'
+						</when>
+						<when test="item.name == 'mobile'">
+							MOBILE LIKE '%' + #{keyword} + '%'
+						</when>
+					</choose>
+				</foreach>
+			</if>
+		</trim>
+	</sql>
+	
+	<select id="selectCustList" parameterType="wpk.com.service.ComDefaultVO" resultType="wpk.cpns.cust.service.CustVO">
+		<![CDATA[
+		SELECT
+			ROW_NUM,
+			PARK_CD,
+			PARK_NM,
+			CUST_SEQ,
+			CUST_ID,
+			CUST_NM,
+			BIZRNO,
+			OWNER_NM,
+			CHARGE_NM,
+			E_MAIL_ADDR,
+			DONG,
+			HO,
+			TEL_NO,
+			MOBILE,
+			FAX_NO,
+			USE_YN,
+			CONVERT(VARCHAR(19), REG_DT, 21) AS REG_DT,
+			REG_ID,
+			CONVERT(VARCHAR(19), UPDT_DT, 21) AS UPDT_DT,
+			UPDT_ID,
+			REMARK
+		FROM (
+			SELECT
+				_ALL.*, _PM.PARK_NM
+			FROM (
+				SELECT
+					ROW_NUMBER() OVER(ORDER BY
+		]]>
+					<choose>
+						<when test="order != null">
+							<foreach collection="order" item="item" index="index" separator="," open="" close="">
+								<choose>
+									<when test="item.name == 'parkNm'">
+										PARK_CD
+									</when>
+									<when test="item.name == 'custNm'">
+										CUST_NM
+									</when>
+									<when test="item.name == 'custId'">
+										CUST_ID
+									</when>
+									<when test="item.name == 'telNo'">
+										TEL_NO
+									</when>
+									<when test="item.name == 'mobile'">
+										MOBILE
+									</when>
+									<when test="item.name == 'useYn'">
+										USE_YN
+									</when>
+									<when test="item.name == 'regDt'">
+										REG_DT
+									</when>
+								</choose>
+								<choose>
+									<when test="item.dir == 'desc'">
+										DESC
+									</when>
+									<otherwise>
+										ASC
+									</otherwise>
+								</choose>
+							</foreach>
+						</when>
+						<otherwise>
+							PARK_CD ASC, CUST_NM ASC
+						</otherwise>
+					</choose>
+		<![CDATA[
+					) ROW_NUM,
+					PARK_CD,
+					CUST_SEQ,
+					CUST_ID,
+					CUST_PWD,
+					CUST_NM,
+					BIZRNO,
+					OWNER_NM,
+					CHARGE_NM,
+					E_MAIL_ADDR,
+					DONG,
+					HO,
+					TEL_NO,
+					MOBILE,
+					FAX_NO,
+					USE_YN,
+					REG_DT,
+					REG_ID,
+					UPDT_DT,
+					UPDT_ID,
+					REMARK
+		]]>
+				<include refid="sqlCustList"/>
+		<![CDATA[
+				) AS _ALL
+				INNER JOIN WPK_CPNS_PARK_MST _PM
+				ON (
+					_PM.PARK_CD = _ALL.PARK_CD
+				)
+			WHERE
+				ROW_NUM <= ${start + length}
+			) AS _TB
+		WHERE
+			ROW_NUM > ${start}
+		]]>
+	</select>
+		
+	<select id="selectCustListTotalCnt" parameterType="wpk.com.service.ComDefaultVO" resultType="int">
+		<![CDATA[
+		SELECT
+			COUNT(*) AS TOTAL_CNT
+		]]>
+		<include refid="sqlCustList"/>
+	</select>
+	
+	<select id="selectCust" parameterType="String" resultType="wpk.cpns.cust.service.CustVO">
+		<![CDATA[
+		SELECT
+			_CM.PARK_CD,
+			_PM.PARK_NM,
+			_CM.CUST_SEQ,
+			_CM.CUST_ID,
+			_CM.CUST_PWD,
+			_CM.CUST_NM,
+			_CM.BIZRNO,
+			_CM.OWNER_NM,
+			_CM.CHARGE_NM,
+			_CM.E_MAIL_ADDR,
+			_CM.DONG,
+			_CM.HO,
+			_CM.TEL_NO,
+			_CM.MOBILE,
+			_CM.FAX_NO,
+			CAST(_CM.USE_YN AS CHAR(1)) AS USE_YN,
+			CONVERT(VARCHAR(19), _CM.REG_DT, 21) AS REG_DT,
+			_CM.REG_ID,
+			CONVERT(VARCHAR(19), _CM.UPDT_DT, 21) AS UPDT_DT,
+			_CM.UPDT_ID,
+			_CM.REMARK
+		FROM
+			WPK_CPNS_CUST_MST _CM
+			INNER JOIN WPK_CPNS_PARK_MST _PM
+			ON (
+				_PM.PARK_CD = _CM.PARK_CD
+			)
+		WHERE
+			_CM.CUST_SEQ = #{custSeq}
+		]]>
+	</select>
+	
+	<update id="updateCust" parameterType="wpk.cpns.cust.service.CustVO">
+		<![CDATA[
+		UPDATE
+			WPK_CPNS_CUST_MST
+		SET
+			CUST_NM     = #{custNm},
+			BIZRNO      = #{bizrno},
+			OWNER_NM    = #{ownerNm},
+			CHARGE_NM   = #{chargeNm},
+			E_MAIL_ADDR = #{eMailAddr},
+			TEL_NO      = #{telNo},
+			MOBILE      = #{mobile},
+			FAX_NO      = #{faxNo},
+			USE_YN      = CAST(#{useYn} AS BIT),
+			REMARK      = #{remark},
+			UPDT_ID     = #{updtId},
+			UPDT_DT     = SYSDATETIME()
+		WHERE
+			CUST_SEQ = #{custSeq}
+		]]>
+	</update>
+	
+	<update id="updatePassword" parameterType="wpk.cpns.cust.service.CustVO">
+		<![CDATA[
+		UPDATE
+			WPK_CPNS_CUST_MST
+		SET
+			CUST_PWD = #{custPwd},
+			UPDT_ID  = #{updtId},
+			UPDT_DT  = SYSDATETIME()
+		WHERE
+			CUST_SEQ = #{custSeq}
+		]]>
+	</update>
+	
+	<select id="checkIdDuplicate" parameterType="wpk.cpns.cust.service.CustVO" resultType="int">
+		<![CDATA[
+		SELECT
+			COUNT(CUST_ID) AS CNT
+		FROM
+			WPK_CPNS_CUST_MST
+		WHERE
+			PARK_CD = #{parkCd}
+			AND CUST_ID = #{custId}
+		]]>
+	</select>
+	
+	<insert id="insertCust" parameterType="wpk.cpns.cust.service.CustVO">
+		<![CDATA[
+		INSERT INTO WPK_CPNS_CUST_MST (
+			PARK_CD,
+			CUST_SEQ,
+			CUST_ID,
+			CUST_PWD,
+			CUST_NM,
+			BIZRNO,
+			OWNER_NM,
+			CHARGE_NM,
+			E_MAIL_ADDR,
+			TEL_NO,
+			MOBILE,
+			FAX_NO,
+			USE_YN,
+			REG_DT,
+			REG_ID,
+			UPDT_DT,
+			UPDT_ID,
+			REMARK
+		)
+		VALUES (
+			#{parkCd},
+			#{custSeq},
+			#{custId},
+			#{custPwd},
+			#{custNm},
+			#{bizrno},
+			#{ownerNm},
+			#{chargeNm},
+			#{eMailAddr},
+			#{telNo},
+			#{mobile},
+			#{faxNo},
+			CAST('1' AS BIT),
+			SYSDATETIME(),
+			#{regId},
+			SYSDATETIME(),
+			#{updtId},
+			#{remark}
+		)
+		]]>
+	</insert>
+	
+</mapper>

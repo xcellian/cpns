@@ -1,0 +1,532 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="orderDAO">
+	
+	<sql id="sqlOrderList">
+		<![CDATA[
+		FROM (
+			SELECT DISTINCT
+				_ODR.ORDER_SEQ,
+				_ODR.CUST_SEQ,
+				_ODR.CPN_TYPE,
+				_ODR.AMT,
+				_ODR.ORDER_STATE,
+				_ODR.PAY_TYPE,
+				_ODR.PAY_TYPE_NM,
+				_ODR.ORDER_DT,
+				_ODR.CHARGE_ID,
+				_ODR.CHARGE_NM,
+				_ODR.REG_DT,
+				_ODR.REG_ID,
+				_ODR.UPDT_DT,
+				_ODR.UPDT_ID,
+				_ODR.CANCEL_YN,
+				_ODR.CANCEL_DT,
+				_ODR.REMARK
+			FROM
+				WPK_CPNS_CPN_ORDER _ODR
+				INNER JOIN WPK_CPNS_CPN_ORDER_DETAIL _DTL
+				ON (
+					_DTL.ORDER_SEQ = _ODR.ORDER_SEQ
+				)
+		]]>
+			WHERE
+				_ODR.ORDER_STATE <![CDATA[ <> ]]> '99'
+				AND _ODR.CUST_SEQ = #{custSeq}
+				<if test="startDt != null and startDt != ''">
+					AND _ODR.ORDER_DT <![CDATA[ >= ]]> #{startDt}
+				</if>
+				<if test="endDt != null and endDt != ''">
+					AND _ODR.ORDER_DT <![CDATA[ < ]]> DATEADD(D, 1, #{endDt})
+				</if>
+				<if test="keyword != null and keyword != ''">
+					AND _DTL.CPN_NM LIKE '%' + #{keyword} + '%'
+				</if>
+			) AS _DST
+	</sql>
+	
+	<select id="selectOrderList" parameterType="wpk.com.service.ComDefaultVO" resultType="wpk.cpns.order.service.OrderVO">
+		<![CDATA[
+		SELECT
+			ORDER_SEQ,
+			CUST_SEQ,
+			CPN_NM + (CASE
+				WHEN CNT > 1 THEN ' 외 ' + CAST((CNT - 1) AS VARCHAR(10)) + '건'
+				ELSE ''
+			END) AS PRODUCT_NM,
+			CPN_TYPE,
+			AMT AS ORDER_AMOUNT,
+			ORDER_STATE,
+			CASE
+				WHEN ORDER_STATE = '10' THEN '결제대기'
+				WHEN ORDER_STATE = '11' THEN '주문완료'
+				WHEN ORDER_STATE = '21' THEN '담당자접수'
+				WHEN ORDER_STATE = '31' THEN '발송완료'
+				WHEN ORDER_STATE = '91' THEN '주문취소'
+			END AS ORDER_STATE_NM,
+			PAY_TYPE,
+			PAY_TYPE_NM,
+			CONVERT(VARCHAR(10), ORDER_DT, 21) AS ORDER_DT,
+			CHARGE_ID,
+			CHARGE_NM,
+			CONVERT(VARCHAR(19), REG_DT, 21) AS REG_DT,
+			REG_ID,
+			CONVERT(VARCHAR(19), UPDT_DT, 21) AS UPDT_DT,
+			UPDT_ID,
+			CANCEL_YN,
+			CANCEL_DT,
+			REMARK
+		FROM (
+			SELECT
+				_ALL.*,
+				(
+					SELECT TOP 1
+						CPN_NM
+					FROM
+						WPK_CPNS_CPN_ORDER_DETAIL
+					WHERE
+						CUST_SEQ = _ALL.CUST_SEQ
+						AND ORDER_SEQ = _ALL.ORDER_SEQ
+					ORDER BY
+						CPN_SEQ
+				) AS CPN_NM,
+				_DCN.CNT AS CNT
+			FROM (
+				SELECT
+					ROW_NUMBER() OVER(ORDER BY
+		]]>
+					<choose>
+						<when test="order != null">
+							<foreach collection="order" item="item" index="index" separator="," open="" close="">
+								<choose>
+									<when test="item.name == 'orderDt'">
+										_DST.ORDER_SEQ
+									</when>
+								</choose>
+								<choose>
+									<when test="item.dir == 'desc'">
+										DESC
+									</when>
+									<otherwise>
+										ASC
+									</otherwise>
+								</choose>
+							</foreach>
+						</when>
+						<otherwise>
+							_ODR.ORDER_SEQ DESC
+						</otherwise>
+					</choose>
+		<![CDATA[
+					) ROW_NUM,
+					_DST.*
+		]]>
+				<include refid="sqlOrderList"/>
+		<![CDATA[
+				) AS _ALL
+				INNER JOIN (
+					SELECT
+						ORDER_SEQ, CUST_SEQ, COUNT(*) AS CNT
+					FROM
+						WPK_CPNS_CPN_ORDER_DETAIL
+					WHERE
+						CUST_SEQ = #{custSeq}
+					GROUP BY
+						ORDER_SEQ,
+						CUST_SEQ
+				) _DCN
+				ON (
+					_DCN.ORDER_SEQ = _ALL.ORDER_SEQ
+					AND _DCN.CUST_SEQ = _ALL.CUST_SEQ
+				)
+			WHERE
+				ROW_NUM <= ${start + length}
+			) AS _TB
+		WHERE
+			ROW_NUM > ${start}
+		]]>
+	</select>
+		
+	<select id="selectOrderListTotalCnt" parameterType="wpk.com.service.ComDefaultVO" resultType="int">
+		<![CDATA[
+		SELECT
+			COUNT(*) AS TOTAL_CNT
+		]]>
+		<include refid="sqlOrderList"/>
+	</select>
+	
+	<resultMap id="orderMap" type="wpk.cpns.order.service.PayVO">
+		<result property="orderSeq"        column="ORDER_SEQ"/>
+		<result property="parkCd"          column="PARK_CD"/>
+		<result property="parkNm"          column="PARK_NM"/>
+		<result property="custSeq"         column="CUST_SEQ"/>
+		<result property="custNm"          column="CUST_NM"/>
+		<result property="cpnType"         column="CPN_TYPE"/>
+		<result property="orderAmount"     column="ORDER_AMOUNT"/>
+		<result property="orderState"      column="ORDER_STATE"/>
+		<result property="payType"         column="PAY_TYPE"/>
+		<result property="payTypeNm"       column="PAY_TYPE_NM"/>
+		<result property="orderDt"         column="ORDER_DT"/>
+		<result property="chargeId"        column="CHARGE_ID"/>
+		<result property="chargeNm"        column="CHARGE_NM"/>
+		<result property="cancelYn"        column="CANCEL_YN"/>
+		<result property="cancelDt"        column="CANCEL_DT"/>
+		<result property="regDt"           column="REG_DT"/>
+		<result property="regId"           column="REG_ID"/>
+		<result property="updtDt"          column="UPDT_DT"/>
+		<result property="updtId"          column="UPDT_ID"/>
+		<result property="remark"          column="REMARK"/>
+		<result property="res_cd"          column="RES_CD"/>
+		<result property="res_msg"         column="RES_MSG"/>
+		<result property="cno"             column="CNO"/>
+		<result property="amount"          column="AMOUNT"/>
+		<result property="auth_no"         column="AUTH_NO"/>
+		<result property="tran_date"       column="TRAN_DATE"/>
+		<result property="escrow_yn"       column="ESCROW_YN"/>
+		<result property="complex_yn"      column="COMPLEX_YN"/>
+		<result property="stat_cd"         column="STAT_CD"/>
+		<result property="stat_msg"        column="STAT_MSG"/>
+		<result property="pay_type"        column="PAY_TYPE"/>
+		<result property="card_no"         column="CARD_NO"/>
+		<result property="issuer_cd"       column="ISSUER_CD"/>
+		<result property="issuer_nm"       column="ISSUER_NM"/>
+		<result property="acquirer_cd"     column="ACQUIER_CD"/>
+		<result property="acquirer_nm"     column="ACQUIER_NM"/>
+		<result property="install_period"  column="INSTALL_PERIOD"/>
+		<result property="noint"           column="NOINT"/>
+		<result property="part_cancel_yn"  column="PART_CANCEL_YN"/>
+		<result property="card_gubun"      column="CARD_GUBUN"/>
+		<result property="card_biz_gubun"  column="CARD_BIZ_GUBUN"/>
+		<result property="bank_cd"         column="BANK_CD"/>
+		<result property="bank_nm"         column="BANK_NM"/>
+		<result property="account_no"      column="ACCOUNT_NO"/>
+		<result property="deposit_nm"      column="DEPOSIT_NM"/>
+		<result property="expire_date"     column="EXPIRE_DATE"/>
+		<result property="cash_res_cd"     column="CASH_RES_CD"/>
+		<result property="cash_res_msg"    column="CASH_RES_MSG"/>
+		<result property="cash_auth_no"    column="CASH_AUTH_NO"/>
+		<result property="cash_tran_date"  column="CASH_TRAN_DATE"/>
+		<result property="cash_issue_type" column="CASH_ISSUE_TYPE"/>
+		<result property="cash_auth_type"  column="CASH_AUTH_TYPE"/>
+		<result property="cash_auth_value" column="CASH_AUTH_VALUE"/>
+		<result property="canc_acq_date"   column="CANC_ACQ_DATE"/>
+		<result property="canc_date"       column="CANC_DATE"/>
+		<result property="refund_date"     column="REFUND_DATE"/>
+	</resultMap>
+	<select id="selectOrder" parameterType="String" resultMap="orderMap">
+		<![CDATA[
+		SELECT
+			_ODR.ORDER_SEQ,
+			_ODR.PARK_CD,
+			_ODR.PARK_NM,
+			_ODR.CUST_SEQ,
+			_ODR.CUST_NM,
+			_ODR.CPN_TYPE,
+			_ODR.AMT AS ORDER_AMOUNT,
+			_ODR.ORDER_STATE,
+			_ODR.PAY_TYPE,
+			_ODR.PAY_TYPE_NM,
+			CONVERT(VARCHAR(10), _ODR.ORDER_DT, 21) AS ORDER_DT,
+			_ODR.CHARGE_ID,
+			_ODR.CHARGE_NM,
+			_ODR.CANCEL_YN,
+			_ODR.CANCEL_DT,
+			CONVERT(VARCHAR(19), _ODR.REG_DT, 21) AS REG_DT,
+			_ODR.REG_ID,
+			CONVERT(VARCHAR(19), _ODR.UPDT_DT, 21) AS UPDT_DT,
+			_ODR.UPDT_ID,
+			_ODR.REMARK,
+			/*_PAY.IDX,                  */
+			/*_PAY.ORDER_SEQ AS ORDER_NO,*/
+			/*_PAY.ORDER_DT,             */
+			/*_PAY.CUST_SEQ,             */
+			/*_PAY.CUST_NM,              */
+			_PAY.RES_CD,
+			_PAY.RES_MSG,
+			_PAY.CNO,
+			_PAY.AMOUNT,
+			_PAY.AUTH_NO,
+			_PAY.TRAN_DATE,
+			_PAY.ESCROW_YN,
+			_PAY.COMPLEX_YN,
+			_PAY.STAT_CD,
+			_PAY.STAT_MSG,
+			_PAY.PAY_TYPE,
+			_PAY.CARD_NO,
+			_PAY.ISSUER_CD,
+			_PAY.ISSUER_NM,
+			_PAY.ACQUIER_CD,
+			_PAY.ACQUIER_NM,
+			_PAY.INSTALL_PERIOD,
+			_PAY.NOINT,
+			_PAY.PART_CANCEL_YN,
+			_PAY.CARD_GUBUN,
+			_PAY.CARD_BIZ_GUBUN,
+			_PAY.BANK_CD,
+			_PAY.BANK_NM,
+			_PAY.ACCOUNT_NO,
+			_PAY.DEPOSIT_NM,
+			_PAY.EXPIRE_DATE,
+			_PAY.CASH_RES_CD,
+			_PAY.CASH_RES_MSG,
+			_PAY.CASH_AUTH_NO,
+			_PAY.CASH_TRAN_DATE,
+			_PAY.CASH_ISSUE_TYPE,
+			_PAY.CASH_AUTH_TYPE,
+			_PAY.CASH_AUTH_VALUE,
+			_PAY.CANC_ACQ_DATE,
+			_PAY.CANC_DATE,
+			_PAY.REFUND_DATE,
+			_PAY.REG_DT AS PAY_REG_DT,
+			_PAY.REG_ID AS PAY_REG_ID,
+			_PAY.UPDT_DT AS PAY_UPDT_DT,
+			_PAY.UPDT_ID AS PAY_UPDT_ID
+		FROM
+			WPK_CPNS_CPN_ORDER _ODR
+			INNER JOIN (
+				SELECT
+					__PAY.IDX,							__PAY.ORDER_SEQ,
+					__PAY.ORDER_DT,						__PAY.CUST_SEQ,
+					__PAY.CUST_NM,						__PAY.RES_CD,
+					__PAY.RES_MSG,						__PAY.CNO,
+					__PAY.AMOUNT,						__PAY.AUTH_NO,
+					__PAY.TRAN_DATE,					__PAY.ESCROW_YN,
+					__PAY.COMPLEX_YN,					__PAY.STAT_CD,
+					__PAY.STAT_MSG,						__PAY.PAY_TYPE,
+					__PAY.CARD_NO,						__PAY.ISSUER_CD,
+					__PAY.ISSUER_NM,					__PAY.ACQUIER_CD,
+					__PAY.ACQUIER_NM,					__PAY.INSTALL_PERIOD,
+					__PAY.NOINT,						__PAY.PART_CANCEL_YN,
+					__PAY.CARD_GUBUN,					__PAY.CARD_BIZ_GUBUN,
+					__PAY.BANK_CD,						__PAY.BANK_NM,
+					__PAY.ACCOUNT_NO,					__PAY.DEPOSIT_NM,
+					__PAY.EXPIRE_DATE,					__PAY.CASH_RES_CD,
+					__PAY.CASH_RES_MSG,					__PAY.CASH_AUTH_NO,
+					__PAY.CASH_TRAN_DATE,				__PAY.CASH_ISSUE_TYPE,
+					__PAY.CASH_AUTH_TYPE,				__PAY.CASH_AUTH_VALUE,
+					ISNULL(_CPAY.CANC_ACQ_DATE, __PAY.CANC_ACQ_DATE) AS CANC_ACQ_DATE,
+					ISNULL(_CPAY.CANC_DATE, __PAY.CANC_DATE) AS CANC_DATE,
+					ISNULL(_CPAY.REFUND_DATE, __PAY.REFUND_DATE) AS REFUND_DATE,
+					__PAY.REG_DT,						__PAY.REG_ID,
+					ISNULL(_CPAY.UPDT_DT, __PAY.UPDT_DT) AS UPDT_DT,
+					ISNULL(_CPAY.UPDT_ID, __PAY.UPDT_ID) AS UPDT_ID
+				FROM
+					WPK_CPNS_PAY_INFO __PAY
+					LEFT JOIN WPK_CPNS_PAY_INFO _CPAY
+					ON (
+						_CPAY.ORDER_SEQ = __PAY.ORDER_SEQ
+						AND _CPAY.STAT_CD IN ('TS02', 'TS05') /* 승인취소, 매입취소 */
+					)
+				WHERE
+					__PAY.ORDER_SEQ = #{orderSeq}
+					AND __PAY.STAT_CD IN ('TS01', 'TS03', 'TS07', 'TS08') /* 승인, 매입요청, 입금대기, 입금완료 */
+			) AS _PAY
+			ON (
+				_PAY.ORDER_SEQ = _ODR.ORDER_SEQ
+			)
+		WHERE
+			_ODR.ORDER_STATE <> '99'
+			AND _ODR.ORDER_SEQ = #{orderSeq}
+		]]>
+	</select>
+	
+<!-- 	<update id="updateCust" parameterType="wpk.cpns.cust.service.CustVO">
+		<![CDATA[
+		UPDATE
+			WPK_CPNS_CUST_MST
+		SET
+			CUST_NM     = #{custNm},
+			BIZRNO      = #{bizrno},
+			OWNER_NM    = #{ownerNm},
+			CHARGE_NM   = #{chargeNm},
+			E_MAIL_ADDR = #{eMailAddr},
+			TEL_NO      = #{telNo},
+			MOBILE      = #{mobile},
+			FAX_NO      = #{faxNo},
+			USE_YN      = CAST(#{useYn} AS BIT),
+			REMARK      = #{remark},
+			UPDT_ID     = #{updtId},
+			UPDT_DT     = SYSDATETIME()
+		WHERE
+			CUST_SEQ = #{custSeq}
+		]]>
+	</update> -->
+	
+	<insert id="insertOrder" parameterType="wpk.cpns.order.service.OrderVO">
+		<![CDATA[
+		INSERT INTO WPK_CPNS_CPN_ORDER (
+			ORDER_SEQ,
+			PARK_CD,
+			PARK_NM,
+			CUST_SEQ,
+			CUST_NM,
+			CPN_TYPE,
+			AMT,
+			ORDER_STATE,
+			PAY_TYPE,
+			PAY_TYPE_NM,
+			ORDER_DT,
+			CHARGE_ID,
+			CHARGE_NM,
+			REG_DT,
+			REG_ID,
+			UPDT_DT,
+			UPDT_ID,
+			REMARK
+		)
+		VALUES (
+			#{orderSeq},
+			#{parkCd},
+			#{parkNm},
+			#{custSeq},
+			#{custNm},
+			#{cpnType},
+			#{orderAmount},
+			#{orderState},
+			#{payType},
+			#{payTypeNm},
+			CAST(#{orderDt} AS DATETIME2),
+			#{chargeId},
+			#{chargeNm},
+			SYSDATETIME(),
+			#{regId},
+			SYSDATETIME(),
+			#{updtId},
+			#{remark}
+		)
+		]]>
+	</insert>
+	
+	<insert id="insertOrderDetail" parameterType="wpk.cpns.order.service.OrderVO">
+		<![CDATA[
+		INSERT INTO WPK_CPNS_CPN_ORDER_DETAIL (
+			ORDER_SEQ,
+			CUST_SEQ,
+			CPN_SEQ,
+			CPN_NM,
+			QTY,
+			PRICE,
+			AMT,
+			REG_DT,
+			REG_ID,
+			UPDT_DT,
+			UPDT_ID
+		)
+		VALUES 
+		]]>
+		<foreach collection="orderDetail" item="item" separator=", ">
+			(
+				#{orderSeq},
+				#{custSeq},
+				#{item.cpnSeq},
+				#{item.cpnNm},
+				#{item.qty},
+				#{item.price},
+				#{item.amount},
+				SYSDATETIME(),
+				#{regId},
+				SYSDATETIME(),
+				#{updtId}
+			)
+		</foreach>
+	</insert>
+	
+	<insert id="insertPayInfo" parameterType="wpk.cpns.order.service.PayVO">
+		<![CDATA[
+		INSERT INTO WPK_CPNS_PAY_INFO (
+			ORDER_SEQ,
+			ORDER_DT,
+			CUST_SEQ,
+			CUST_NM,
+			RES_CD,
+			RES_MSG,
+			CNO,
+			AMOUNT,
+			AUTH_NO,
+			TRAN_DATE,
+			ESCROW_YN,
+			COMPLEX_YN,
+			STAT_CD,
+			STAT_MSG,
+			PAY_TYPE,
+			CARD_NO,
+			ISSUER_CD,
+			ISSUER_NM,
+			ACQUIER_CD,
+			ACQUIER_NM,
+			INSTALL_PERIOD,
+			NOINT,
+			PART_CANCEL_YN,
+			CARD_GUBUN,
+			CARD_BIZ_GUBUN,
+			BANK_CD,
+			BANK_NM,
+			ACCOUNT_NO,
+			DEPOSIT_NM,
+			EXPIRE_DATE,
+			CASH_RES_CD,
+			CASH_RES_MSG,
+			CASH_AUTH_NO,
+			CASH_TRAN_DATE,
+			CASH_ISSUE_TYPE,
+			CASH_AUTH_TYPE,
+			CASH_AUTH_VALUE,
+			CANC_ACQ_DATE,
+			CANC_DATE,
+			REFUND_DATE,
+			REG_DT,
+			REG_ID,
+			UPDT_DT,
+			UPDT_ID
+		)
+		VALUES (
+			#{orderSeq},
+			CAST(#{orderDt} AS DATETIME2),
+			#{custSeq},
+			#{custNm},
+			#{res_cd},
+			#{res_msg},
+			#{cno},
+			#{amount},
+			#{auth_no},
+			#{tran_date},
+			#{escrow_yn},
+			#{complex_yn},
+			#{stat_cd},
+			#{stat_msg},
+			#{pay_type},
+			#{card_no},
+			#{issuer_cd},
+			#{issuer_nm},
+			#{acquirer_cd},
+			#{acquirer_nm},
+			#{install_period},
+			#{noint},
+			#{part_cancel_yn},
+			#{card_gubun},
+			#{card_biz_gubun},
+			#{bank_cd},
+			#{bank_nm},
+			#{account_no},
+			#{deposit_nm},
+			#{expire_date},
+			#{cash_res_cd},
+			#{cash_res_msg},
+			#{cash_auth_no},
+			#{cash_tran_date},
+			#{cash_issue_type},
+			#{cash_auth_type},
+			#{cash_auth_value},
+			#{canc_acq_date},
+			#{canc_date},
+			#{refund_date},
+			SYSDATETIME(),
+			#{regId},
+			SYSDATETIME(),
+			#{updtId}
+		)
+		]]>
+	</insert>
+	
+</mapper>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="wpkComUtilDAO">
+
+	<select id="selectMenuList" parameterType="String" resultType="wpk.com.service.MenuVO">
+		<![CDATA[
+		SELECT
+			MNU.MENU_NM,
+			MNU.MENU_ACTION,
+			MNU.MENU_NO,
+			MNU.UPPER_MENU_NO,
+			MNU.MENU_ORDER,
+			MNU.MENU_DESCR,
+			MNU.RELATE_ICON
+		FROM
+			WPK_CPNS_MENU_INFO MNU
+			INNER JOIN WPK_CPNS_MENU_AUTHOR AUT
+			ON (
+				AUT.MENU_NO = MNU.MENU_NO
+			)
+		WHERE
+			AUT.AUTHOR_CODE = #{authCd}
+			AND USE_YN = 1
+		ORDER BY
+			CAST(MNU.MENU_ORDER AS INT)
+		]]>
+	</select>
+
+</mapper>

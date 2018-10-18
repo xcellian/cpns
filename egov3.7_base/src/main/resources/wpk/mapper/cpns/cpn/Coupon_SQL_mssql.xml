@@ -1,0 +1,360 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="cpnDAO">
+	
+	<sql id="sqlCpnList">
+		<![CDATA[
+		FROM
+			WPK_CPNS_CPN_MST
+		]]>
+		<trim prefix="WHERE" prefixOverrides="AND">
+			<if test="cpnType != null and cpnType != ''">
+				AND CPN_TYPE = #{cpnType}
+			</if>
+			<if test="parkCd != null and parkCd != ''">
+				AND PARK_CD = #{parkCd}
+			</if>
+			<if test="useYn != null and useYn != ''">
+				AND USE_YN = CAST(#{useYn} AS BIT)
+			</if>
+			<if test="startDt != null and startDt != ''">
+				AND REG_DT <![CDATA[ >= ]]> #{startDt}
+			</if>
+			<if test="endDt != null and endDt != ''">
+				AND REG_DT <![CDATA[ < ]]> DATEADD(D, 1, #{endDt})
+			</if>
+			<if test="searchItem != null and keyword != null and keyword != ''">
+				AND
+				<foreach collection="searchItem" item="item" index="index" separator="OR" open="(" close=")">
+					<choose>
+						<when test="item.name == 'cpnNm'">
+							CPN_NM LIKE '%' + #{keyword} + '%'
+						</when>
+						<when test="item.name == 'cpnCd'">
+							CPN_CD LIKE '%' + #{keyword} + '%'
+						</when>
+						<when test="item.name == 'remark'">
+							REMARK LIKE '%' + #{keyword} + '%'
+						</when>
+					</choose>
+				</foreach>
+			</if>
+		</trim>
+	</sql>
+	
+	<select id="selectCpnList" parameterType="wpk.com.service.ComDefaultVO" resultType="wpk.cpns.cpn.service.CouponVO">
+		<![CDATA[
+		SELECT
+			ROW_NUM,
+			PARK_CD,
+			PARK_NM,
+			CPN_SEQ,
+			CPN_CD,
+			CPN_NM,
+			PRICE,
+			CPN_TYPE,
+			USE_YN,
+			CONVERT(VARCHAR(19), REG_DT, 21) AS REG_DT,
+			REG_ID,
+			CONVERT(VARCHAR(19), UPDT_DT, 21) AS UPDT_DT,
+			UPDT_ID,
+			REMARK
+		FROM (
+			SELECT
+				_ALL.*, _PM.PARK_NM
+			FROM (
+				SELECT
+					ROW_NUMBER() OVER(ORDER BY
+		]]>
+					<choose>
+						<when test="order != null">
+							<foreach collection="order" item="item" index="index" separator="," open="" close="">
+								<choose>
+									<when test="item.name == 'parkNm'">
+										PARK_CD
+									</when>
+									<when test="item.name == 'cpnCd'">
+										CPN_CD
+									</when>
+									<when test="item.name == 'cpnNm'">
+										CPN_NM
+									</when>
+									<when test="item.name == 'price'">
+										PRICE
+									</when>
+									<when test="item.name == 'useYn'">
+										USE_YN
+									</when>
+									<when test="item.name == 'regDt'">
+										REG_DT
+									</when>
+								</choose>
+								<choose>
+									<when test="item.dir == 'desc'">
+										DESC
+									</when>
+									<otherwise>
+										ASC
+									</otherwise>
+								</choose>
+							</foreach>
+						</when>
+						<otherwise>
+							PARK_CD ASC, CPN_CD ASC
+						</otherwise>
+					</choose>
+		<![CDATA[
+					) ROW_NUM,
+					PARK_CD,
+					CPN_SEQ,
+					CPN_CD,
+					CPN_NM,
+					PRICE,
+					CPN_TYPE,
+					USE_YN,
+					REG_DT,
+					REG_ID,
+					UPDT_DT,
+					UPDT_ID,
+					REMARK
+		]]>
+				<include refid="sqlCpnList"/>
+		<![CDATA[
+				) AS _ALL
+				INNER JOIN WPK_CPNS_PARK_MST _PM
+				ON (
+					_PM.PARK_CD = _ALL.PARK_CD
+				)
+			WHERE
+				ROW_NUM <= ${start + length}
+			) AS _TB
+		WHERE
+			ROW_NUM > ${start}
+		]]>
+	</select>
+	
+	<select id="selectCpnListTotalCnt" parameterType="wpk.com.service.ComDefaultVO" resultType="int">
+		<![CDATA[
+		SELECT
+			COUNT(*) AS TOTAL_CNT
+		]]>
+		<include refid="sqlCpnList"/>
+	</select>
+	
+	<select id="selectCpn" parameterType="wpk.com.service.ComDefaultVO" resultType="wpk.cpns.cpn.service.CouponVO">
+		<![CDATA[
+		SELECT
+			_CM.PARK_CD,
+			_PM.PARK_NM,
+			_CM.CPN_SEQ,
+			_CM.CPN_CD,
+			_CM.CPN_NM,
+			_CM.PRICE,
+			_CM.CPN_TYPE,
+			CAST(_CM.USE_YN AS CHAR(1)) AS USE_YN,
+			CONVERT(VARCHAR(19), _CM.REG_DT, 21) AS REG_DT,
+			_CM.REG_ID,
+			CONVERT(VARCHAR(19), _CM.UPDT_DT, 21) AS UPDT_DT,
+			_CM.UPDT_ID,
+			_CM.REMARK
+		FROM
+			WPK_CPNS_CPN_MST _CM
+			INNER JOIN WPK_CPNS_PARK_MST _PM
+			ON (
+				_PM.PARK_CD = _CM.PARK_CD
+			)
+		WHERE
+			_CM.CPN_SEQ = #{cpnSeq}
+		]]>
+	</select>
+	
+	<update id="updateCpn" parameterType="wpk.cpns.cpn.service.CouponVO">
+		<![CDATA[
+		UPDATE
+			WPK_CPNS_CPN_MST
+		SET
+			CPN_NM  = #{cpnNm},
+			PRICE   = #{price},
+			USE_YN  = CAST(#{useYn} AS BIT),
+			REMARK  = #{remark},
+			UPDT_ID = #{updtId},
+			UPDT_DT = SYSDATETIME()
+		WHERE
+			CPN_SEQ = #{cpnSeq}
+		]]>
+	</update>
+	
+	<select id="checkCpnCdDuplicate" parameterType="wpk.cpns.cpn.service.CouponVO" resultType="int">
+		<![CDATA[
+		SELECT
+			COUNT(CPN_CD) AS CNT
+		FROM
+			WPK_CPNS_CPN_MST
+		WHERE
+			PARK_CD = #{parkCd}
+			AND CPN_CD = #{cpnCd}
+			AND CPN_TYPE = #{cpnType}
+		]]>
+	</select>
+	
+	<insert id="insertCpn" parameterType="wpk.cpns.cpn.service.CouponVO">
+		<![CDATA[
+		INSERT INTO WPK_CPNS_CPN_MST (
+			PARK_CD,
+			CPN_SEQ,
+			CPN_CD,
+			CPN_NM,
+			PRICE,
+			CPN_TYPE,
+			USE_YN,
+			REG_DT,
+			REG_ID,
+			UPDT_DT,
+			UPDT_ID,
+			REMARK
+		)
+		VALUES (
+			#{parkCd},
+			#{cpnSeq},
+			#{cpnCd},
+			#{cpnNm},
+			#{price},
+			#{cpnType},
+			CAST('1' AS BIT),
+			SYSDATETIME(),
+			#{regId},
+			SYSDATETIME(),
+			#{updtId},
+			#{remark}
+		)
+		]]>
+	</insert>
+	
+	<select id="selectCpnListByPark" parameterType="wpk.com.service.ComDefaultVO" resultType="wpk.cpns.cpn.service.CouponVO">
+		<![CDATA[
+		SELECT
+			_MST.PARK_CD,
+			_MST.CPN_SEQ,
+			_MST.CPN_CD,
+			_MST.CPN_NM,
+			_MST.PRICE,
+			_MST.CPN_TYPE,
+			_MST.USE_YN,
+			CONVERT(VARCHAR(19), _MST.REG_DT, 21) AS REG_DT,
+			_MST.REG_ID,
+			CONVERT(VARCHAR(19), _MST.UPDT_DT, 21) AS UPDT_DT,
+			_MST.UPDT_ID,
+			_MST.REMARK,
+			ISNULL(_MNG.CPN_SEQ, '') AS IS_USED
+		FROM
+			WPK_CPNS_CPN_MST _MST
+			LEFT JOIN WPK_CPNS_CUST_CPN_MNG _MNG
+			ON (
+				_MNG.PARK_CD = _MST.PARK_CD
+				AND _MNG.CPN_SEQ = _MST.CPN_SEQ
+				AND _MNG.CUST_SEQ = #{custSeq}
+			)
+		WHERE
+			_MST.PARK_CD = #{parkCd}
+			AND _MST.CPN_TYPE = #{cpnType}
+			AND _MST.USE_YN = CAST('1' AS BIT)
+		ORDER BY
+			_MST.CPN_CD
+		]]>
+	</select>
+	
+	<select id="selectCustCouponList" parameterType="wpk.com.service.ComDefaultVO" resultType="wpk.cpns.cust.service.CustCouponVO">
+		<![CDATA[
+		SELECT
+			PARK_CD,
+			CUST_SEQ,
+			CPN_TYPE,
+			CPN_SEQ,
+			CPN_CD,
+			CPN_NM,
+			QTY_MIN,
+			QTY_MAX,
+			PRICE,
+			CONVERT(VARCHAR(19), REG_DT, 21) AS REG_DT,
+			REG_ID,
+			CONVERT(VARCHAR(19), UPDT_DT, 21) AS UPDT_DT,
+			UPDT_ID
+		FROM
+			WPK_CPNS_CUST_CPN_MNG
+		WHERE
+			CUST_SEQ = #{custSeq}
+			AND CPN_TYPE = #{cpnType}
+		]]>
+	</select>
+	
+	<insert id="insertCustCpn" parameterType="wpk.cpns.cust.service.CustCouponVO">
+		<![CDATA[
+		INSERT INTO WPK_CPNS_CUST_CPN_MNG (
+			PARK_CD,
+			CUST_SEQ,
+			CPN_TYPE,
+			CPN_SEQ,
+			CPN_CD,
+			CPN_NM,
+			QTY_MIN,
+			QTY_MAX,
+			PRICE,
+			REG_DT,
+			REG_ID,
+			UPDT_DT,
+			UPDT_ID
+		)
+		VALUES (
+			#{parkCd},
+			#{custSeq},
+			#{cpnType},
+			#{cpnSeq},
+			#{cpnCd},
+			#{cpnNm},
+			#{qtyMin},
+			#{qtyMax},
+			#{price},
+			SYSDATETIME(),
+			#{regId},
+			SYSDATETIME(),
+			#{updtId}
+		)
+		]]>
+	</insert>
+	
+	<delete id="deleteAllCustCpn" parameterType="wpk.cpns.cust.service.CustVO">
+		<![CDATA[
+		DELETE
+		FROM
+			WPK_CPNS_CUST_CPN_MNG
+		WHERE
+			PARK_CD = #{parkCd}
+			AND CUST_SEQ = #{custSeq}
+		]]>
+	</delete>
+	
+	<select id="selectCustCpn" parameterType="wpk.cpns.cust.service.CustCouponVO" resultType="wpk.cpns.cust.service.CustCouponVO">
+		<![CDATA[
+		SELECT
+			PARK_CD,
+			CUST_SEQ,
+			CPN_SEQ,
+			CPN_CD,
+			CPN_NM,
+			CPN_TYPE,
+			PRICE,
+			QTY_MIN,
+			QTY_MAX,
+			CONVERT(VARCHAR(19), REG_DT, 21) AS REG_DT,
+			REG_ID,
+			CONVERT(VARCHAR(19), UPDT_DT, 21) AS UPDT_DT,
+			UPDT_ID
+		FROM
+			WPK_CPNS_CUST_CPN_MNG
+		WHERE
+			CUST_SEQ = #{custSeq}
+			AND CPN_SEQ = #{cpnSeq}
+		]]>
+	</select>
+</mapper>
